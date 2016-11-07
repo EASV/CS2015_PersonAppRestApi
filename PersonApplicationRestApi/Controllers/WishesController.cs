@@ -1,33 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.Entity;
-using System.Data.Entity.Infrastructure;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Web.Http;
 using System.Web.Http.Description;
-using PersonApplicationDll.Context;
+using PersonApplicationDll;
 using PersonApplicationDll.Entities;
 
 namespace PersonApplicationRestApi.Controllers
 {
     public class WishesController : ApiController
     {
-        private PersonAppContext db = new PersonAppContext();
-
+        private IRepository<Wish> wr = new DllFacade().GetWishRepository();
         // GET: api/Wishes
-        public IQueryable<Wish> GetWishes()
+        public List<Wish> GetWishes()
         {
-            return db.Wishes;
+            return wr.Read();
         }
 
         // GET: api/Wishes/5
         [ResponseType(typeof(Wish))]
         public IHttpActionResult GetWish(int id)
         {
-            Wish wish = db.Wishes.Find(id);
+            var wish = wr.Read(id);
             if (wish == null)
             {
                 return NotFound();
@@ -47,30 +41,19 @@ namespace PersonApplicationRestApi.Controllers
 
             if (id != wish.Id)
             {
-                return BadRequest();
+                return BadRequest("Ids did not match");
             }
 
-            db.Entry(wish).State = EntityState.Modified;
-
-            try
-            {
-                db.SaveChanges();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!WishExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            wr.Update(wish);
 
             return StatusCode(HttpStatusCode.NoContent);
         }
 
+        /// <summary>
+        /// This is the great post request remember I like chokolate
+        /// </summary>
+        /// <param name="wish"></param>
+        /// <returns></returns>
         // POST: api/Wishes
         [ResponseType(typeof(Wish))]
         public IHttpActionResult PostWish(Wish wish)
@@ -80,40 +63,31 @@ namespace PersonApplicationRestApi.Controllers
                 return BadRequest(ModelState);
             }
 
-            db.Wishes.Add(wish);
-            db.SaveChanges();
+            wr.Create(wish);
 
             return CreatedAtRoute("DefaultApi", new { id = wish.Id }, wish);
         }
 
+        /// <summary>
+        /// This is the Delete function
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         // DELETE: api/Wishes/5
         [ResponseType(typeof(Wish))]
-        public IHttpActionResult DeleteWish(int id)
+        [HttpDelete]
+        public IHttpActionResult Wish(int id)
         {
-            Wish wish = db.Wishes.Find(id);
+            var wish = wr.Read(id);
             if (wish == null)
             {
                 return NotFound();
             }
 
-            db.Wishes.Remove(wish);
-            db.SaveChanges();
+            wr.Delete(id);
 
             return Ok(wish);
         }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                db.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        private bool WishExists(int id)
-        {
-            return db.Wishes.Count(e => e.Id == id) > 0;
-        }
+        
     }
 }
